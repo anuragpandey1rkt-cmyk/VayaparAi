@@ -1,0 +1,82 @@
+## Core Framework
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+pydantic==2.6.1
+pydantic-settings==2.2.1
+email-validator==2.1.0.post1
+
+## Database
+sqlalchemy==2.0.27
+asyncpg==0.29.0
+alembic==1.13.1
+pgvector==0.2.4
+psycopg2-binary==2.9.9
+
+## Auth & Security
+python-jose[cryptography]==3.3.0
+bcrypt==3.2.2
+passlib[bcrypt]==1.7.4
+python-dotenv==1.0.1
+
+## Redis & Celery (task queue)
+redis==5.0.1
+celery==5.3.6
+flower==2.0.1
+kombu==5.3.4
+
+## S3 / Object Storage
+boto3==1.34.39
+botocore==1.34.39
+
+## AI / LLM
+openai==1.12.0
+groq==0.4.2
+tiktoken==0.6.0
+sentence-transformers==2.4.0
+torch==2.2.0
+transformers==4.38.1
+
+## OCR
+pytesseract==0.3.10
+Pillow==10.2.0
+pdf2image==1.17.0
+pypdf==4.0.2
+pdfminer.six==20231228
+opencv-python-headless==4.9.0.80
+
+## NLP & Data Processing
+numpy==1.26.4
+pandas==2.2.0
+scikit-learn==1.4.0
+
+## HTTP Client
+httpx==0.26.0
+aiohttp==3.9.3
+
+## WebSockets
+websockets==12.0
+
+## Stripe
+stripe==8.3.0
+
+## Email
+aiosmtplib==3.0.1
+jinja2==3.1.3
+
+## Monitoring & Logging
+structlog==24.1.0
+sentry-sdk[fastapi]==1.40.5
+
+## Testing
+pytest==8.0.2
+pytest-asyncio==0.23.5
+httpx==0.26.0
+factory-boy==3.3.0
+
+## Rate Limiting
+slowapi==0.1.9
+
+## CORS & Utils
+python-dateutil==2.9.0.post0
+pytz==2024.1

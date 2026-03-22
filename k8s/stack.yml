@@ -1,0 +1,450 @@
+---
+# VyaparAI – Full Kubernetes stack
+# Apply: kubectl apply -f k8s/
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Namespace
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vyaparai
+
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# ConfigMap – shared non-secret env vars
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vyaparai-config
+  namespace: vyaparai
+data:
+  APP_ENV: "production"
+  ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "60"
+  CORS_ORIGINS: "https://vyaparai.com,https://app.vyaparai.com"
+  REDIS_URL: "redis://vyaparai-redis:6379/0"
+  DATABASE_URL: "postgresql+asyncpg://vyaparai:changeme@vyaparai-postgres:5432/vyaparai"
+  MINIO_ENDPOINT: "vyaparai-minio:9000"
+  MINIO_BUCKET_NAME: "vyaparai-documents"
+  MAX_UPLOAD_SIZE: "52428800"
+  OPENAI_MODEL: "gpt-4o"
+
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# Secret – sensitive keys (replace values with base64-encoded strings)
+# Use: echo -n "value" | base64
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vyaparai-secrets
+  namespace: vyaparai
+type: Opaque
+stringData:
+  SECRET_KEY: "REPLACE_WITH_STRONG_SECRET_KEY_MIN_32_CHARS"
+  OPENAI_API_KEY: "REPLACE_WITH_sk-..."
+  MINIO_ACCESS_KEY: "minioadmin"
+  MINIO_SECRET_KEY: "REPLACE_WITH_MINIO_PASSWORD"
+  STRIPE_SECRET_KEY: "REPLACE_WITH_sk_live_..."
+  STRIPE_WEBHOOK_SECRET: "REPLACE_WITH_whsec_..."
+  SENTRY_DSN: ""
+
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# PostgreSQL (production: replace with RDS or CloudSQL)
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vyaparai-postgres
+  namespace: vyaparai
+spec:
+  serviceName: vyaparai-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: pgvector/pgvector:pg16
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: vyaparai
+            - name: POSTGRES_USER
+              value: vyaparai
+            - name: POSTGRES_PASSWORD
+              value: changeme
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 50Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vyaparai-postgres
+  namespace: vyaparai
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# Redis
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vyaparai-redis
+  namespace: vyaparai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          command: ["redis-server", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vyaparai-redis
+  namespace: vyaparai
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# Backend (FastAPI)
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vyaparai-backend
+  namespace: vyaparai
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: your-registry/vyaparai-backend:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: vyaparai-config
+            - secretRef:
+                name: vyaparai-secrets
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "2000m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vyaparai-backend
+  namespace: vyaparai
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 8000
+      targetPort: 8000
+
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# Celery Worker
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vyaparai-worker
+  namespace: vyaparai
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+        - name: worker
+          image: your-registry/vyaparai-backend:latest
+          command: ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "-Q", "document_processing,cashflow_update", "--concurrency=4"]
+          envFrom:
+            - configMapRef:
+                name: vyaparai-config
+            - secretRef:
+                name: vyaparai-secrets
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# Celery Beat (scheduler)
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vyaparai-beat
+  namespace: vyaparai
+spec:
+  replicas: 1  # ALWAYS 1 for beat
+  selector:
+    matchLabels:
+      app: beat
+  template:
+    metadata:
+      labels:
+        app: beat
+    spec:
+      containers:
+        - name: beat
+          image: your-registry/vyaparai-backend:latest
+          command: ["celery", "-A", "app.workers.celery_app", "beat", "--loglevel=info"]
+          envFrom:
+            - configMapRef:
+                name: vyaparai-config
+            - secretRef:
+                name: vyaparai-secrets
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# Frontend (Next.js)
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vyaparai-frontend
+  namespace: vyaparai
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: your-registry/vyaparai-frontend:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              value: "https://api.vyaparai.com"
+            - name: NEXT_PUBLIC_WS_URL
+              value: "wss://api.vyaparai.com"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vyaparai-frontend
+  namespace: vyaparai
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 3000
+      targetPort: 3000
+
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# Horizontal Pod Autoscaler
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: vyaparai-backend-hpa
+  namespace: vyaparai
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vyaparai-backend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: vyaparai-worker-hpa
+  namespace: vyaparai
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: vyaparai-worker
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+---
+# ──────────────────────────────────────────────────────────────────────────────
+# Ingress (requires nginx-ingress-controller + cert-manager)
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: vyaparai-ingress
+  namespace: vyaparai
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    # WebSocket support
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "Upgrade";
+spec:
+  tls:
+    - hosts:
+        - vyaparai.com
+        - api.vyaparai.com
+      secretName: vyaparai-tls
+  rules:
+    - host: api.vyaparai.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vyaparai-backend
+                port:
+                  number: 8000
+    - host: vyaparai.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: vyaparai-frontend
+                port:
+                  number: 3000
