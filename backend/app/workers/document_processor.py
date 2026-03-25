@@ -269,6 +269,12 @@ async def _save_invoice(db, doc, data: dict, tenant_id: uuid.UUID):
         raw_extracted=data,
     )
     db.add(invoice)
+    await db.flush()
+
+    # Trigger vendor reliability update
+    if vendor_id:
+        from app.services.vendor_service import update_vendor_reliability
+        await update_vendor_reliability(vendor_id, db)
 
 
 async def _save_contract(db, doc, data: dict, tenant_id: uuid.UUID):
