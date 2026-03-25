@@ -26,9 +26,19 @@ export function useWebSockets() {
             socket.onopen = () => {
                 setStatus('connected')
                 console.log('✅ WebSocket connected')
+                
+                // Start heartbeat
+                const hb = setInterval(() => {
+                    if (socket.readyState === WebSocket.OPEN) {
+                        socket.send('ping')
+                    }
+                }, 30000)
+                // @ts-ignore
+                socket._hb = hb
             }
 
             socket.onmessage = (event) => {
+                if (event.data === 'pong') return
                 try {
                     const data = JSON.parse(event.data)
                     console.log('📩 WebSocket message:', data)
@@ -55,6 +65,8 @@ export function useWebSockets() {
 
             socket.onclose = () => {
                 setStatus('disconnected')
+                // @ts-ignore
+                if (socket._hb) clearInterval(socket._hb)
                 console.log('❌ WebSocket disconnected. Retrying in 5s...')
                 setTimeout(connect, 5000)
             }
