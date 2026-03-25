@@ -10,6 +10,7 @@ from sqlalchemy import select, func, text
 from app.database import get_db
 from app.dependencies import get_tenant_id, get_current_user
 from app.services.gst_service import get_gst_summary
+from app.services.spending_service import get_spending_summary
 
 router = APIRouter()
 
@@ -109,6 +110,9 @@ async def get_dashboard_summary(
     # ── GST ───────────────────────────────────────────────────────────────
     gst = await get_gst_summary(str(tid), db, days=30)
 
+    # ── Spending ──────────────────────────────────────────────────────────
+    spending = await get_spending_summary(str(tid), db, days=30)
+
     # ── Latest Insight ────────────────────────────────────────────────────
     insight_result = await db.execute(
         text("""
@@ -158,6 +162,10 @@ async def get_dashboard_summary(
         "gst": {
             "net_payable": gst["net_gst_payable"],
             "status": gst["status"],
+        },
+        "spending": {
+            "total_spend": spending["total_spend"],
+            "categories": spending["categories"],
         },
         "latest_insight": {
             "title": latest_insight.title,
