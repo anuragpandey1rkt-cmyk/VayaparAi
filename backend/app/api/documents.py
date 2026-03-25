@@ -13,6 +13,7 @@ from app.dependencies import get_current_user, get_tenant_id
 from app.models.document import Document
 from app.models.user import User
 from app.services import s3_service
+from app.models.audit_log import AuditLog
 from app.workers.document_processor import process_document
 
 router = APIRouter()
@@ -65,6 +66,17 @@ async def upload_document(
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
+    
+    # Audit Log
+    db.add(AuditLog(
+        tenant_id=current_user.tenant_id,
+        user_id=current_user.id,
+        action="document.upload",
+        resource_type="document",
+        resource_id=str(doc.id),
+        description=f"Uploaded document: {doc.filename}"
+    ))
+    await db.commit()
 
     # Queue background processing
     process_document.delay(str(doc.id), tenant_id)
@@ -163,6 +175,17 @@ async def delete_document(
         raise HTTPException(status_code=404, detail="Document not found")
 
     s3_service.delete_file(doc.s3_key)
+    
+    # Audit Log (Create before deletion or use dummy ref)
+    db.add(AuditLog(
+        tenant_id=uuid.UUID(tenant_id),
+        user_id=current_user.id,
+        action="document.delete",
+        resource_type="document",
+        resource_id=str(doc.id),
+        description=f"Deleted document: {doc.filename}"
+    ))
+    
     await db.delete(doc)
     await db.commit()
 
