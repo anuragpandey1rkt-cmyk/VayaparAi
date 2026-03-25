@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { TrendingUp, TrendingDown, IndianRupee, RefreshCw } from 'lucide-react'
+import { TrendingUp, TrendingDown, IndianRupee, RefreshCw, Zap } from 'lucide-react'
 import { cashflowApi } from '@/lib/api'
 import {
     AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
@@ -90,9 +90,28 @@ export default function CashflowPage() {
                     <div className="text-3xl font-bold text-red-400">
                         ₹{((data?.expected_payables || 0) / 100000).toFixed(2)}L
                     </div>
-                    <div className="text-xs text-muted-foreground mt-1">Based on historical avg</div>
+                    <div className="text-xs text-muted-foreground mt-1">Due invoices + avg expenses</div>
                 </div>
             </div>
+
+            {/* AI Co-pilot Analysis */}
+            {data?.co_pilot_analysis && (
+                <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="p-5 rounded-xl border border-primary/20 bg-primary/5 flex gap-4 items-start"
+                >
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <Zap className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-semibold text-primary mb-1">AI Co-pilot Analysis</h4>
+                        <p className="text-sm text-foreground/90 leading-relaxed italic">
+                            "{data.co_pilot_analysis}"
+                        </p>
+                    </div>
+                </motion.div>
+            )}
 
             {/* Main Chart */}
             <div className="glass-card p-6 border border-border">
