@@ -141,8 +141,12 @@ export const auditApi = {
     list: (params?: any) => api.get('/audit/', { params }),
 }
 
+// ── Spending ──────────────────────────────────────────────────────────────
+export const spendingApi = {
+    summary: (days: number = 30) => api.get(`/spending/summary?days=${days}`),
+}
+
 // ── GST ──────────────────────────────────────────────────────────────────
 export const gstApi = {
     summary: (days = 30) => api.get('/gst/summary', { params: { days } }),
 }
-
