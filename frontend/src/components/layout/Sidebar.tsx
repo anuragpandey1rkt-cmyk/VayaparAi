@@ -17,6 +17,7 @@ import {
     ShieldCheck,
     LogOut,
     ChevronRight,
+    History,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useRouter } from 'next/navigation'
@@ -31,6 +32,7 @@ const navItems = [
     { href: '/alerts', icon: Bell, label: 'Alerts' },
     { href: '/contracts', icon: ShieldCheck, label: 'Contracts' },
     { href: '/chat', icon: MessageSquare, label: 'AI Chat' },
+    { href: '/audit', icon: History, label: 'Activity Log' },
     { href: '/settings', icon: Settings, label: 'Settings' },
 ]
 
