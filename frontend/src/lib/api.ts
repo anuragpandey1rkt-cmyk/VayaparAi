@@ -136,3 +136,8 @@ export const insightsApi = {
     spendAnalysis: () => api.get('/insights/spend-analysis'),
 }
 
+// ── Audit ──────────────────────────────────────────────────────────────────
+export const auditApi = {
+    list: (params?: any) => api.get('/audit/', { params }),
+}
+
