@@ -153,6 +153,48 @@ export default function DashboardPage() {
                 </motion.div>
             </div>
 
+            {/* Spending Breakdown */}
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+            >
+                <div className="glass-card p-6 border border-border h-full">
+                    <h3 className="font-bold mb-4 flex items-center gap-2">
+                        <ShoppingBag className="w-4 h-4 text-primary" />
+                        Spending Breakdown
+                    </h3>
+                    {summary.spending?.categories?.length > 0 ? (
+                        <div className="space-y-4">
+                            {summary.spending.categories.slice(0, 5).map((cat: any, i: number) => (
+                                <div key={i}>
+                                    <div className="flex justify-between text-xs mb-1">
+                                        <span className="font-medium text-muted-foreground">{cat.category}</span>
+                                        <span className="font-mono font-bold">₹{(cat.amount / 1000).toFixed(1)}k</span>
+                                    </div>
+                                    <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-primary rounded-full transition-all duration-1000"
+                                            style={{ width: `${(cat.amount / summary.spending.total_spend) * 100}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+                            <button
+                                onClick={() => window.location.href = '/spending'}
+                                className="w-full text-center text-[10px] font-bold uppercase tracking-widest text-primary hover:text-primary/80 transition-colors pt-2"
+                            >
+                                View Full Analytics
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="h-40 flex items-center justify-center text-muted-foreground text-sm italic">
+                            No spending data available
+                        </div>
+                    )}
+                </div>
+            </motion.div>
+
             {/* Metric Cards */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
