@@ -59,28 +59,39 @@ class WebSocketManager:
         """Background loop to subscribe to Redis and broadcast messages."""
         import redis.asyncio as redis
         import json
+        import traceback
         from app.config import settings
 
-        r = redis.from_url(settings.REDIS_URL, decode_responses=True)
-        pubsub = r.pubsub()
-        await pubsub.subscribe("vyaparai:notifications")
-
+        logger.info(f"📡 Connecting to Redis for WS at {settings.REDIS_URL}")
         try:
+            r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+            pubsub = r.pubsub()
+            await pubsub.subscribe("vyaparai:notifications")
+            logger.info("📡 Subscribed to 'vyaparai:notifications' channel")
+
             async for message in pubsub.listen():
                 if message["type"] == "message":
                     try:
                         data = json.loads(message["data"])
                         tenant_id = data.get("tenant_id")
+                        logger.info(f"📩 Received Redis notification for tenant {tenant_id}: {data.get('type')}")
                         if tenant_id:
                             await self.send_to_tenant(tenant_id, data)
                         else:
                             await self.broadcast(data)
                     except Exception as e:
-                        logger.error(f"Error processing Redis message: {e}")
+                        logger.error(f"❌ Error processing Redis message: {e}")
+                        logger.error(traceback.format_exc())
         except asyncio.CancelledError:
-            await pubsub.unsubscribe("vyaparai:notifications")
-            await r.close()
+            logger.info("📡 Redis listener loop cancelled")
             raise
+        except Exception as e:
+            logger.error(f"❌ Redis listener loop error: {e}")
+            logger.error(traceback.format_exc())
+            # Retry after delay
+            await asyncio.sleep(5)
+            self._redis_task = None
+            await self.start_redis_listener()
 
     async def send_to_tenant(self, tenant_id: str, message: dict) -> None:
         """Broadcast a JSON message to all connections for a tenant."""

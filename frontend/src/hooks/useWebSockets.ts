@@ -12,7 +12,11 @@ export function useWebSockets() {
         if (!token) return
 
         const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-        const wsUrl = `${API_BASE.replace('http', 'ws')}/ws/?token=${token}`
+        let wsUrl = process.env.NEXT_PUBLIC_WS_URL || API_BASE.replace('http', 'ws')
+        
+        // Ensure wsUrl ends with / and append token
+        if (!wsUrl.endsWith('/')) wsUrl += '/'
+        wsUrl += `?token=${token}`
 
         const connect = () => {
             setStatus('connecting')

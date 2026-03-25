@@ -358,22 +358,29 @@ async def _notify_ws(tenant_id: str, document_id: str, status: str, detail: str 
     """
     import redis.asyncio as redis
     import json
+    import traceback
     from app.config import settings
 
     try:
+        # Ensure values are strings for JSON serialization
+        tenant_id_str = str(tenant_id)
+        document_id_str = str(document_id)
+        
         r = redis.from_url(settings.REDIS_URL, decode_responses=True)
         message = {
             "type": "DOCUMENT_STATUS_UPDATE",
-            "tenant_id": tenant_id,
-            "document_id": document_id,
+            "tenant_id": tenant_id_str,
+            "document_id": document_id_str,
             "status": status,
             "detail": detail,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
+        logger.info(f"📤 Publishing notification to Redis for tenant {tenant_id_str}: {status}")
         await r.publish("vyaparai:notifications", json.dumps(message))
         await r.close()
     except Exception as e:
-        logger.error(f"Failed to publish notification to Redis: {e}")
+        logger.error(f"❌ Failed to publish notification to Redis: {e}")
+        logger.error(traceback.format_exc())
 
 
 async def notify_step(tenant_id: str, document_id: str, step: str):
