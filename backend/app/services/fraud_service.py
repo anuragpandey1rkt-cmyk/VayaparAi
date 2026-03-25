@@ -87,6 +87,31 @@ async def run_fraud_checks(
             related_invoice_id=str(invoice.id),
         )
 
+    # ── Check 4: Unusual Vendor Activity ───────────────────────────────────
+    if invoice.vendor_id:
+        is_unusual, unusual_detail = await _check_unusual_vendor(invoice, db)
+        if is_unusual:
+            fraud_score += 25.0
+            results["details"].append(unusual_detail)
+            await _create_alert(
+                db,
+                tenant_id=str(invoice.tenant_id),
+                alert_type="unusual_vendor_activity",
+                severity="warning",
+                title="Unusual Vendor Activity",
+                message=unusual_detail,
+                related_invoice_id=str(invoice.id),
+                related_vendor_id=str(invoice.vendor_id),
+            )
+
+    # ── Check 5: Non-Business Day Invoice ──────────────────────────────────
+    is_weekend, weekend_detail = _check_business_day(invoice)
+    if is_weekend:
+        fraud_score += 10.0
+        results["details"].append(weekend_detail)
+        # We don't necessarily create a standalone alert for weekends unless it's combined with others
+        # but we track it in the details.
+
     results["fraud_score"] = min(fraud_score, 100.0)
     return results
 
@@ -184,6 +209,47 @@ def _check_gst_mismatch(invoice: Invoice):
             f"₹{expected_total:.2f} but invoice total is ₹{total:.2f}"
         )
     return True, ""
+
+
+async def _check_unusual_vendor(invoice: Invoice, db: AsyncSession):
+    """Check if a vendor has a sudden spike in invoice value or is 'new' with high value."""
+    result = await db.execute(
+        select(
+            func.max(Invoice.total_amount).label("max_amount"),
+            func.count(Invoice.id).label("count"),
+        ).where(
+            Invoice.tenant_id == invoice.tenant_id,
+            Invoice.vendor_id == invoice.vendor_id,
+            Invoice.id != invoice.id,
+        )
+    )
+    stats = result.first()
+    
+    current = float(invoice.total_amount or 0)
+    
+    # 1. New vendor with high initial value (> ₹1,00,000)
+    if (not stats or stats.count == 0) and current > 100000:
+        return True, f"New vendor '{invoice.vendor_name}' submitted a high-value initial invoice: ₹{current:,.2f}"
+    
+    # 2. Sudden spike (> 2x previous max)
+    if stats and stats.count > 2 and stats.max_amount:
+        prev_max = float(stats.max_amount)
+        if current > prev_max * 2:
+            return True, f"Invoice amount ₹{current:,.2f} is more than 2x the historical maximum (₹{prev_max:,.2f}) for this vendor"
+            
+    return False, ""
+
+
+def _check_business_day(invoice: Invoice):
+    """Flag invoices dated on Sundays."""
+    if not invoice.invoice_date:
+        return False, ""
+    
+    # weekday() returns 0 for Monday, 6 for Sunday
+    if invoice.invoice_date.weekday() == 6:
+        return True, f"Invoice is dated on a Sunday ({invoice.invoice_date.strftime('%Y-%m-%d')}), which is unusual for this business type."
+    
+    return False, ""
 
 
 async def _create_alert(
