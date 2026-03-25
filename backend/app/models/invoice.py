@@ -38,6 +38,7 @@ class Invoice(Base):
 
     # Status
     status: Mapped[str] = mapped_column(String(50), default="unpaid", index=True)
+    category: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     payment_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     # Fraud flags
