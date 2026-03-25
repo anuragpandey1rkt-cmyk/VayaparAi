@@ -264,6 +264,7 @@ async def _save_invoice(db, doc, data: dict, tenant_id: uuid.UUID):
         total_gst=data.get("total_gst") or gst_total,
         total_amount=data.get("total_amount"),
         currency=data.get("currency", "INR"),
+        category=data.get("category"),
         line_items=data.get("line_items"),
         raw_extracted=data,
     )

@@ -67,6 +67,7 @@ Return this exact JSON structure:
   "total_gst": number or null,
   "total_amount": number or null,
   "currency": "INR",
+  "category": "one of: Marketing, Inventory, Utilities, Rent, Salaries, Logistics, Other",
   "line_items": [
     {{"description": "string", "quantity": number, "unit_price": number, "amount": number}}
   ]
