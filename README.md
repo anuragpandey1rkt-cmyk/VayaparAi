@@ -17,16 +17,16 @@ Browser → Nginx → Next.js (frontend)
 ### AI Processing Pipeline (12 Steps)
 1. Upload to MinIO (S3-compatible)
 2. Celery worker picks up job
-3. Tesseract OCR (PDF + image, Hindi + English)  
-4. GPT-4o NLP structuring
-5. Structured data saved (invoice/contract/bank)
-6. Vendor upsert + stats update
-7. Fraud detection (duplicate, overcharge, GST mismatch)
-8. Document chunking (512-token chunks)
-9. OpenAI `text-embedding-3-small` embeddings
-10. pgvector HNSW index storage
-11. Cashflow forecast update
-12. Status → `completed`, WebSocket notify
+3. Tesseract OCR (Hybrid English/Hindi)
+4. Llama-3.1 / GPT-4o NLP Structuring
+5. Structured data extraction (Invoice/Contract/Bank)
+6. Vendor intelligent upsert + risk profiling
+7. Advanced Fraud Engine (Duplicate, Spike, New Vendor, GST)
+8. Document chunking & Vector storage (pgvector)
+9. Semantic indexing for RAG Chat
+10. Audit logging (Action + User + Resource)
+11. AI Cashflow Co-pilot & GST Analytics
+12. Real-time WebSocket sync via Redis Pub/Sub
 
 ---
 
@@ -129,27 +129,30 @@ See [`.env.example`](.env.example) for full reference.
 | GET | `/api/v1/invoices/` | List invoices |
 | GET | `/api/v1/invoices/stats` | Invoice statistics |
 | GET | `/api/v1/vendors/heatmap` | Risk heatmap |
-| GET | `/api/v1/cashflow/forecast` | 30/60-day forecast |
+| GET | `/api/v1/cashflow/forecast` | AI-powered 30/60/90-day forecast |
+| GET | `/api/v1/insights/spend-analysis` | LLM-driven business co-pilot advice |
+| GET | `/api/v1/gst/summary` | GST Liability vs ITC breakdown |
+| GET | `/api/v1/audit/` | System & User activity logs |
 | POST | `/api/v1/chat/message` | RAG business chat |
 | GET | `/api/v1/alerts/` | List alerts |
 | PATCH | `/api/v1/alerts/{id}/resolve` | Resolve alert |
-| WS | `/ws/?token=<jwt>` | Real-time updates |
+| WS | `/ws/` | Real-time Redis-backed updates |
 
 ---
 
 ## Intelligence Modules
 
-### Fraud Detection
-- **Duplicate Invoice**: Same vendor + amount + date check
-- **Overcharge**: Amount >30% above vendor's historical average
-- **GST Mismatch**: Claimed GST ≠ calculated (subtotal × rate)
-- Creates `alerts` entries automatically
+### Fraud Detection (Advanced)
+- **Duplicate Detection**: Smart vendor + amount + number matching.
+- **Spike Detection**: Flags sudden >2x historical spend increases.
+- **New Vendor Risk**: High-value initial invoices from unknown entities.
+- **Anomalous Timing**: Sunday/Holiday invoice flagging.
+- **GST Mismatch**: Automated verification of tax computations.
 
-### Cashflow Forecasting
-- **Receivables**: Unpaid invoices due within horizon
-- **Payables**: Average monthly spend × projection factor
-- **Daily breakdown**: Day-by-day balance prediction
-- **Confidence bands**: ±15% interval
+### Cashflow & GST Analytics
+- **AI Co-pilot**: Dynamic narrative analysis explaining "why" balance changes.
+- **Precision Outflows**: Uses actual invoice due dates for bank-level accuracy.
+- **GST Tracking**: Real-time summary of ITC vs Liability for easier filing.
 
 ### RAG Business Chat
 1. Embed user query (OpenAI)

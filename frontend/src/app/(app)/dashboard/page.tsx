@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
     Activity, AlertTriangle, TrendingUp, TrendingDown, FileText,
-    ShieldAlert, IndianRupee, CheckCircle2, XCircle, Clock,
+    ShieldAlert, IndianRupee, CheckCircle2, XCircle, Clock, Zap, Receipt
 } from 'lucide-react'
 import { dashboardApi } from '@/lib/api'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
@@ -187,7 +187,41 @@ export default function DashboardPage() {
                     color="bg-purple-500/15 text-purple-400"
                     href="/invoices"
                 />
+                <StatCard
+                    title="GST Net Payable"
+                    value={`₹${(Math.abs(summary.gst?.net_payable || 0)).toLocaleString('en-IN')}`}
+                    subtitle={summary.gst?.status === 'surplus' ? 'GST Surplus (ITC > Liability)' : 'GST Liability'}
+                    icon={Receipt}
+                    color={summary.gst?.status === 'surplus' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-primary/15 text-primary'}
+                    href="/gst"
+                />
             </div>
+
+            {/* AI Insight Highlights */}
+            {summary.latest_insight && (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="p-5 rounded-xl border border-primary/20 bg-primary/5 flex gap-4 items-center group cursor-pointer hover:bg-primary/10 transition-colors"
+                >
+                    <Link href="/insights" className="flex gap-4 items-center w-full">
+                        <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center shrink-0 shadow-lg shadow-primary/10 group-hover:scale-110 transition-transform">
+                            <Zap className="w-6 h-6 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                                <span className="text-xs font-bold uppercase tracking-wider text-primary/80">Premium AI Insight</span>
+                                <span className="px-1.5 py-0.5 rounded-full bg-primary/20 text-[10px] font-bold text-primary">Impact: {summary.latest_insight.impact_score}/10</span>
+                            </div>
+                            <h4 className="font-semibold text-foreground truncate">{summary.latest_insight.title}</h4>
+                            <p className="text-sm text-muted-foreground truncate">{summary.latest_insight.recommendation}</p>
+                        </div>
+                        <div className="hidden sm:block text-primary group-hover:translate-x-1 transition-transform">
+                            <TrendingUp className="w-5 h-5" />
+                        </div>
+                    </Link>
+                </motion.div>
+            )}
 
             {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

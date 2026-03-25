@@ -9,6 +9,7 @@ from sqlalchemy import select, func, text
 
 from app.database import get_db
 from app.dependencies import get_tenant_id, get_current_user
+from app.services.gst_service import get_gst_summary
 
 router = APIRouter()
 
@@ -105,6 +106,20 @@ async def get_dashboard_summary(
     )
     cf = cf_result.first()
 
+    # ── GST ───────────────────────────────────────────────────────────────
+    gst = await get_gst_summary(str(tid), db, days=30)
+
+    # ── Latest Insight ────────────────────────────────────────────────────
+    insight_result = await db.execute(
+        text("""
+            SELECT title, recommendation, impact_score
+            FROM insights WHERE tenant_id = :tenant_id
+            ORDER BY created_at DESC LIMIT 1
+        """),
+        {"tenant_id": str(tid)},
+    )
+    latest_insight = insight_result.first()
+
     # ── Compute Scores ─────────────────────────────────────────────────────
     avg_fraud = float(invs.avg_fraud_score or 0) if invs else 0
     critical_count = int(alert_stats.critical or 0) if alert_stats else 0
@@ -140,4 +155,13 @@ async def get_dashboard_summary(
             "expected_payables": round(float(cf.expected_payables or 0), 2),
             "horizon_days": cf.horizon_days,
         } if cf else None,
+        "gst": {
+            "net_payable": gst["net_gst_payable"],
+            "status": gst["status"],
+        },
+        "latest_insight": {
+            "title": latest_insight.title,
+            "recommendation": latest_insight.recommendation,
+            "impact_score": latest_insight.impact_score,
+        } if latest_insight else None,
     }
