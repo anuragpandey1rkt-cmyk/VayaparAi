@@ -13,9 +13,11 @@ from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from jose import jwt, JWTError
 
 from app.config import settings
 from app.database import engine, Base
+from app.core import exceptions
 from app.api import auth, documents, invoices, contracts, vendors, cashflow, alerts, chat, dashboard, admin, websocket, billing, insights
 from app.websocket_manager import WebSocketManager
 
@@ -37,13 +39,21 @@ ws_manager = WebSocketManager()
 async def lifespan(app: FastAPI):
     """Startup and shutdown lifecycle."""
     logger.info("🚀 VyaparAI Backend starting up...")
+    
+    # Start Redis WebSocket listener
+    await ws_manager.start_redis_listener()
+    
     # Tables are created via Alembic; this is a safety net for development
     async with engine.begin() as conn:
         # Enable pgvector extension
-        await conn.execute(__import__("sqlalchemy").text("CREATE EXTENSION IF NOT EXISTS vector"))
+        try:
+            await conn.execute(__import__("sqlalchemy").text("CREATE EXTENSION IF NOT EXISTS vector"))
+        except Exception as e:
+            logger.warning(f"Failed to create pgvector extension: {e}. Ensure you have superuser privileges if required.")
     logger.info("✅ Database connection established")
     yield
     logger.info("🛑 VyaparAI Backend shutting down...")
+    await ws_manager.stop_redis_listener()
     await engine.dispose()
 
 
@@ -74,6 +84,18 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
+@app.exception_handler(exceptions.VyaparAIException)
+async def vyapar_ai_exception_handler(request: Request, exc: exceptions.VyaparAIException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.message,
+            "error_code": exc.__class__.__name__,
+            "data": exc.detail
+        },
+    )
+
+
 @app.middleware("http")
 async def add_request_timing(request: Request, call_next):
     start = time.time()
@@ -86,6 +108,22 @@ async def add_request_timing(request: Request, call_next):
 @app.middleware("http")
 async def add_tenant_context(request: Request, call_next):
     """Extract and validate tenant from JWT for every request."""
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        try:
+            payload = jwt.decode(
+                token,
+                settings.SECRET_KEY,
+                algorithms=[settings.ALGORITHM],
+            )
+            # sub is user_id, but the token should also carry tenant_id
+            # If not, we might need to fetch it once and cache it
+            request.state.tenant_id = payload.get("tenant_id")
+            request.state.user_id = payload.get("sub")
+        except JWTError:
+            pass
+            
     response = await call_next(request)
     return response
 

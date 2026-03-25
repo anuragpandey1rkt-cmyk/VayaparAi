@@ -7,6 +7,7 @@ import { Upload, File, X, CheckCircle2, Clock, AlertCircle, Loader2 } from 'luci
 import { documentsApi } from '@/lib/api'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { useWebSockets } from '@/hooks/useWebSockets'
 
 type DocType = 'invoice' | 'contract' | 'bank_statement' | 'other'
 
@@ -35,11 +36,14 @@ export default function UploadPage() {
     const [docType, setDocType] = useState<DocType>('invoice')
     const [uploadingFiles, setUploadingFiles] = useState<Map<string, string>>(new Map())
     const queryClient = useQueryClient()
+    
+    // Initialize WebSocket listener
+    useWebSockets()
 
     const { data: documents, isLoading } = useQuery({
         queryKey: ['documents'],
         queryFn: () => documentsApi.list({ per_page: 30 }).then((r) => r.data.items),
-        refetchInterval: 5000, // Poll every 5s for processing updates
+        refetchInterval: 60000, // Reduced polling (fallback only)
     })
 
     const onDrop = useCallback(

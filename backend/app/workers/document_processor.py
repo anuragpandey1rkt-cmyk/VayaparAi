@@ -78,16 +78,19 @@ async def _process_document_async(task, document_id: str, tenant_id: str) -> dic
             )
             await db.commit()
             logger.info(f"[{document_id}] Step 1: Marked as processing")
+            await _notify_ws(tenant_id, document_id, "processing", detail="Starting extraction...")
 
             # ── Step 2: Download from S3 ───────────────────────────────────
             result = await db.execute(select(Document).where(Document.id == doc_id))
             doc = result.scalar_one()
             file_bytes = s3_service.download_file(doc.s3_key)
             logger.info(f"[{document_id}] Step 2: Downloaded {len(file_bytes)} bytes from S3")
+            await notify_step(tenant_id, document_id, "OCR Extraction")
 
             # ── Step 3: OCR Extraction ─────────────────────────────────────
             raw_text, ocr_confidence = ocr_service.extract_text(file_bytes, doc.mime_type or "application/pdf")
             logger.info(f"[{document_id}] Step 3: OCR complete, confidence={ocr_confidence:.2f}, chars={len(raw_text)}")
+            await notify_step(tenant_id, document_id, "NLP Analysis")
 
             # ── Step 4: NLP Structuring ────────────────────────────────────
             extracted_data = {}
@@ -137,6 +140,8 @@ async def _process_document_async(task, document_id: str, tenant_id: str) -> dic
                     )
                     await db.commit()
                     logger.info(f"[{document_id}] Steps 6-7: Fraud checks complete, score={fraud_results['fraud_score']}")
+            
+            await notify_step(tenant_id, document_id, "Generating Search Index")
 
             # ── Steps 8-10: Chunk → Embed → Store in pgvector ─────────────
             chunks = embedding_service.chunk_text(raw_text)
@@ -173,9 +178,8 @@ async def _process_document_async(task, document_id: str, tenant_id: str) -> dic
             await db.commit()
             logger.info(f"[{document_id}] Step 12: Processing complete!")
 
-            # WebSocket notifications from worker are disabled for now
-            # as they require a Redis broadcast bridge to reach the FastAPI app.
-            # asyncio.create_task(_notify_ws(tenant_id, document_id, "completed"))
+            # WebSocket notifications from worker are now enabled via Redis Pub/Sub
+            await _notify_ws(tenant_id, document_id, "completed")
 
             return {"status": "completed", "document_id": document_id}
 
@@ -188,7 +192,7 @@ async def _process_document_async(task, document_id: str, tenant_id: str) -> dic
                 )
             )
             await db.commit()
-            # asyncio.create_task(_notify_ws(tenant_id, document_id, "failed", str(e)))
+            await _notify_ws(tenant_id, document_id, "failed", detail=str(e))
             raise task.retry(exc=e, countdown=30)
 
 
@@ -348,13 +352,33 @@ async def _save_bank_transactions(db, doc, data: dict, tenant_id: uuid.UUID):
         db.add(bt)
 
 
-async def _notify_ws(tenant_id: str, document_id: str, status: str, error: str = None):
+async def _notify_ws(tenant_id: str, document_id: str, status: str, detail: str = None):
     """
-    Placeholder for WebSocket notification.
-    Workers cannot access app.state.ws_manager directly as they run in 
-    separate processes. 
+    Publish notification to Redis for the WebSocket manager to broadcast.
     """
-    pass
+    import redis.asyncio as redis
+    import json
+    from app.config import settings
+
+    try:
+        r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        message = {
+            "type": "DOCUMENT_STATUS_UPDATE",
+            "tenant_id": tenant_id,
+            "document_id": document_id,
+            "status": status,
+            "detail": detail,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        await r.publish("vyaparai:notifications", json.dumps(message))
+        await r.close()
+    except Exception as e:
+        logger.error(f"Failed to publish notification to Redis: {e}")
+
+
+async def notify_step(tenant_id: str, document_id: str, step: str):
+    """Publish a step-level progress update."""
+    await _notify_ws(tenant_id, document_id, "processing", detail=step)
 
 
 @celery_app.task(name="app.workers.document_processor.scheduled_cashflow_update")

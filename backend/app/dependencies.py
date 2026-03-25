@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -57,6 +57,12 @@ async def get_current_admin(current_user=Depends(get_current_user)):
     return current_user
 
 
-async def get_tenant_id(current_user=Depends(get_current_user)) -> str:
-    """Extract tenant_id from the current user as a string."""
+async def get_tenant_id(request: Request, current_user=Depends(get_current_user)) -> str:
+    """
+    Extract tenant_id from the request state (set by middleware) 
+    or fallback to the current user.
+    """
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if tenant_id:
+        return str(tenant_id)
     return str(current_user.tenant_id)

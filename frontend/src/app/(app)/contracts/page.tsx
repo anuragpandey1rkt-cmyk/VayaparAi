@@ -158,10 +158,26 @@ export default function ContractsPage() {
                                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
                                     <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Key Clauses Found
                                 </h4>
-                                <ul className="space-y-1">
-                                    {selected.key_clauses.map((c: string, i: number) => (
-                                        <li key={i} className="text-sm flex items-start gap-2">
-                                            <span className="text-emerald-400 mt-0.5">✓</span> {c}
+                                <ul className="space-y-3">
+                                    {selected.key_clauses.map((c: any, i: number) => (
+                                        <li key={i} className="text-sm bg-emerald-500/5 border border-emerald-500/10 p-2.5 rounded-lg">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <span className="font-semibold text-emerald-400">
+                                                    {typeof c === 'string' ? 'Clause' : c.title}
+                                                </span>
+                                                {c.risk && (
+                                                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                                                        c.risk === 'high' ? 'bg-red-500/20 text-red-400' :
+                                                        c.risk === 'medium' ? 'bg-amber-500/20 text-amber-400' :
+                                                        'bg-emerald-500/20 text-emerald-400'
+                                                    }`}>
+                                                        {c.risk} risk
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="text-xs text-muted-foreground leading-relaxed">
+                                                {typeof c === 'string' ? c : c.content}
+                                            </div>
                                         </li>
                                     ))}
                                 </ul>
@@ -173,25 +189,25 @@ export default function ContractsPage() {
                                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
                                     <XCircle className="w-3 h-3 text-red-400" /> Missing Clauses
                                 </h4>
-                                <ul className="space-y-1">
+                                <div className="flex flex-wrap gap-2">
                                     {selected.missing_clauses.map((c: string, i: number) => (
-                                        <li key={i} className="text-sm flex items-start gap-2">
-                                            <span className="text-red-400 mt-0.5">✗</span> {c}
-                                        </li>
+                                        <span key={i} className="text-[10px] bg-red-500/10 text-red-400 border border-red-500/20 px-2.5 py-1 rounded-full font-medium">
+                                            {c}
+                                        </span>
                                     ))}
-                                </ul>
+                                </div>
                             </div>
                         )}
 
                         {selected.recommended_actions && selected.recommended_actions.length > 0 && (
-                            <div>
-                                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1">
-                                    <Info className="w-3 h-3 text-blue-400" /> Recommended Actions
+                            <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl">
+                                <h4 className="text-xs font-semibold text-blue-400 uppercase tracking-wide mb-3 flex items-center gap-1">
+                                    <Info className="w-3 h-3" /> Recommended Actions
                                 </h4>
-                                <ul className="space-y-1">
+                                <ul className="space-y-2">
                                     {selected.recommended_actions.map((a: string, i: number) => (
-                                        <li key={i} className="text-sm flex items-start gap-2">
-                                            <span className="text-blue-400 mt-0.5">{i + 1}.</span> {a}
+                                        <li key={i} className="text-sm flex items-start gap-2 text-blue-100/80">
+                                            <span className="font-bold text-blue-400">{i + 1}.</span> {a}
                                         </li>
                                     ))}
                                 </ul>

@@ -21,6 +21,7 @@ class WebSocketManager:
         # tenant_id -> list of WebSocket connections
         self._connections: Dict[str, List[WebSocket]] = defaultdict(list)
         self._lock = asyncio.Lock()
+        self._redis_task: Optional[asyncio.Task] = None
 
     async def connect(self, websocket: WebSocket, tenant_id: str) -> None:
         await websocket.accept()
@@ -35,6 +36,52 @@ class WebSocketManager:
                 connections.remove(websocket)
         logger.info(f"WebSocket disconnected for tenant {tenant_id}.")
 
+    async def start_redis_listener(self) -> None:
+        """Start a background task to listen for Redis notifications."""
+        if self._redis_task:
+            return
+
+        self._redis_task = asyncio.create_task(self._redis_listener_loop())
+        logger.info("📡 Redis WebSocket listener started")
+
+    async def stop_redis_listener(self) -> None:
+        """Stop the Redis listener task."""
+        if self._redis_task:
+            self._redis_task.cancel()
+            try:
+                await self._redis_task
+            except asyncio.CancelledError:
+                pass
+            self._redis_task = None
+            logger.info("📡 Redis WebSocket listener stopped")
+
+    async def _redis_listener_loop(self) -> None:
+        """Background loop to subscribe to Redis and broadcast messages."""
+        import redis.asyncio as redis
+        import json
+        from app.config import settings
+
+        r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        pubsub = r.pubsub()
+        await pubsub.subscribe("vyaparai:notifications")
+
+        try:
+            async for message in pubsub.listen():
+                if message["type"] == "message":
+                    try:
+                        data = json.loads(message["data"])
+                        tenant_id = data.get("tenant_id")
+                        if tenant_id:
+                            await self.send_to_tenant(tenant_id, data)
+                        else:
+                            await self.broadcast(data)
+                    except Exception as e:
+                        logger.error(f"Error processing Redis message: {e}")
+        except asyncio.CancelledError:
+            await pubsub.unsubscribe("vyaparai:notifications")
+            await r.close()
+            raise
+
     async def send_to_tenant(self, tenant_id: str, message: dict) -> None:
         """Broadcast a JSON message to all connections for a tenant."""
         connections = list(self._connections.get(tenant_id, []))
@@ -43,7 +90,7 @@ class WebSocketManager:
             try:
                 await ws.send_json(message)
             except Exception as e:
-                logger.warning(f"Failed to send to WebSocket: {e}")
+                # logger.warning(f"Failed to send to WebSocket: {e}")
                 dead_connections.append(ws)
         # Cleanup dead connections
         if dead_connections:
