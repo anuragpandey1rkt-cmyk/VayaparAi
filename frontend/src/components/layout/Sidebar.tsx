@@ -18,6 +18,8 @@ import {
     LogOut,
     ChevronRight,
     History,
+    FileText,
+    Receipt,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useRouter } from 'next/navigation'
@@ -29,8 +31,9 @@ const navItems = [
     { href: '/invoices', icon: FileSignature, label: 'Invoices' },
     { href: '/vendors', icon: Store, label: 'Vendors' },
     { href: '/cashflow', icon: TrendingUp, label: 'Cashflow' },
+    { href: '/gst', icon: Receipt, label: 'GST Insights' },
     { href: '/alerts', icon: Bell, label: 'Alerts' },
-    { href: '/contracts', icon: ShieldCheck, label: 'Contracts' },
+    { href: '/contracts', icon: FileText, label: 'Contracts' },
     { href: '/chat', icon: MessageSquare, label: 'AI Chat' },
     { href: '/audit', icon: History, label: 'Activity Log' },
     { href: '/settings', icon: Settings, label: 'Settings' },
