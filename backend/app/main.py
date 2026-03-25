@@ -18,7 +18,7 @@ from jose import jwt, JWTError
 from app.config import settings
 from app.database import engine, Base
 from app.core import exceptions
-from app.api import auth, documents, invoices, contracts, vendors, cashflow, alerts, chat, dashboard, admin, websocket, billing, insights, audit
+from app.api import auth, documents, invoices, contracts, vendors, cashflow, alerts, chat, dashboard, admin, websocket, billing, insights, audit, gst
 from app.websocket_manager import WebSocketManager
 
 logging.basicConfig(level=logging.INFO)
@@ -137,6 +137,7 @@ app.include_router(invoices.router,   prefix=f"{PREFIX}/invoices",   tags=["Invo
 app.include_router(contracts.router,  prefix=f"{PREFIX}/contracts",  tags=["Contracts"])
 app.include_router(vendors.router,    prefix=f"{PREFIX}/vendors",    tags=["Vendors"])
 app.include_router(cashflow.router,   prefix=f"{PREFIX}/cashflow",   tags=["Cashflow"])
+app.include_router(gst.router,        prefix=f"{PREFIX}/gst",        tags=["GST"])
 app.include_router(alerts.router,     prefix=f"{PREFIX}/alerts",     tags=["Alerts"])
 app.include_router(chat.router,       prefix=f"{PREFIX}/chat",       tags=["AI Chat"])
 app.include_router(dashboard.router,  prefix=f"{PREFIX}/dashboard",  tags=["Dashboard"])
