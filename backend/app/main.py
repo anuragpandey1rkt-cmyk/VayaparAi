@@ -18,7 +18,7 @@ from jose import jwt, JWTError
 from app.config import settings
 from app.database import engine, Base
 from app.core import exceptions
-from app.api import auth, documents, invoices, contracts, vendors, cashflow, alerts, chat, dashboard, admin, websocket, billing, insights, audit, gst
+from app.api import auth, documents, invoices, contracts, vendors, cashflow, alerts, chat, dashboard, admin, websocket, billing, insights, audit, gst, spending
 from app.websocket_manager import WebSocketManager
 
 logging.basicConfig(level=logging.INFO)
