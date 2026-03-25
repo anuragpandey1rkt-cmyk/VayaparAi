@@ -20,6 +20,7 @@ import {
     History,
     FileText,
     Receipt,
+    Users, IndianRupee, ShoppingBag
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useRouter } from 'next/navigation'
@@ -32,6 +33,7 @@ const navItems = [
     { href: '/vendors', icon: Store, label: 'Vendors' },
     { href: '/cashflow', icon: TrendingUp, label: 'Cashflow' },
     { href: '/gst', icon: Receipt, label: 'GST Insights' },
+    { href: '/spending', icon: ShoppingBag, label: 'Spending' }, // Added Spending link
     { href: '/alerts', icon: Bell, label: 'Alerts' },
     { href: '/contracts', icon: FileText, label: 'Contracts' },
     { href: '/chat', icon: MessageSquare, label: 'AI Chat' },

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
     Activity, AlertTriangle, TrendingUp, TrendingDown, FileText,
-    ShieldAlert, IndianRupee, CheckCircle2, XCircle, Clock, Zap, Receipt
+    ShieldAlert, IndianRupee, CheckCircle2, XCircle, Clock, Zap, Receipt, ShoppingBag
 } from 'lucide-react'
 import { dashboardApi } from '@/lib/api'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
@@ -186,6 +186,14 @@ export default function DashboardPage() {
                     icon={ShieldAlert}
                     color="bg-purple-500/15 text-purple-400"
                     href="/invoices"
+                />
+                <StatCard
+                    title="Total Spending"
+                    value={`₹${((summary.spending?.total_spend || 0) / 100000).toFixed(1)}L`}
+                    subtitle="Last 30 days"
+                    icon={ShoppingBag}
+                    color="bg-blue-500/15 text-blue-400"
+                    href="/spending"
                 />
                 <StatCard
                     title="GST Net Payable"

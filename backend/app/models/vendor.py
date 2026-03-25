@@ -30,8 +30,9 @@ class Vendor(Base):
     max_invoice_amount: Mapped[float | None] = mapped_column(Numeric(15, 2), nullable=True)
     min_invoice_amount: Mapped[float | None] = mapped_column(Numeric(15, 2), nullable=True)
 
-    # Risk
+    # Risk & Reliability
     risk_score: Mapped[float] = mapped_column(Numeric(5, 2), default=0.0)
+    reliability_score: Mapped[float] = mapped_column(Numeric(5, 2), default=100.0)
     is_flagged: Mapped[bool] = mapped_column(Boolean, default=False)
     flag_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
