@@ -55,31 +55,9 @@ async def get_spend_analysis(
         for r in reversed(trend_res.fetchall())
     ]
 
-    # 3. AI Insights / Recommendations (Mock logic for now, could be LLM-driven)
-    # In a real app, we'd pass the aggregated data to an LLM here.
-    recommendations = [
-        {
-            "id": "rec_1",
-            "title": "Vendor Consolidation",
-            "description": "You are using 3 different logistics vendors. Consolidating to one could save ~12% on annual spend.",
-            "impact": "High",
-            "category": "Optimization"
-        },
-        {
-            "id": "rec_2",
-            "title": "Unclaimed Input Tax Credit",
-            "description": "Several invoices from 'Reliance Retail' have GST mismatches. Resolve them to claim ₹12,450 in ITC.",
-            "impact": "Medium",
-            "category": "Tax"
-        },
-        {
-            "id": "rec_3",
-            "title": "Early Payment Discounts",
-            "description": "Vendor 'TATA Motors' offers a 2% discount for payments within 10 days. Total potential saving: ₹4,500/mo.",
-            "impact": "Low",
-            "category": "Cashflow"
-        }
-    ]
+    # 3. AI Insights / Recommendations (Dynamic using LLM)
+    from app.services.insight_service import generate_proactive_insights
+    recommendations = await generate_proactive_insights(str(tid), db)
 
     return {
         "top_vendors": vendors,
