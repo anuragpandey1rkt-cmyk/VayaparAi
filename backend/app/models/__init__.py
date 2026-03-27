@@ -12,6 +12,7 @@ from app.models.chat_history import ChatHistory
 from app.models.audit_log import AuditLog
 from app.models.cashflow_prediction import CashflowPrediction
 from app.models.subscription import Subscription
+from app.models.insight import Insight
 
 __all__ = [
     "User",
@@ -27,4 +28,5 @@ __all__ = [
     "AuditLog",
     "CashflowPrediction",
     "Subscription",
+    "Insight",
 ]
